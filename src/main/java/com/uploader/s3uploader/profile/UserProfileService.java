@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.UUID;
 
+
 @Service
 public class UserProfileService {
 
@@ -22,10 +23,23 @@ public class UserProfileService {
     }
 
     public void uploadUserProfileImage(UUID userProfileId, MultipartFile file){
-        //Check if the user exists in DB
+
+        //check if the image is not empty
         //Check if the file is an image file
+        String fileName = file.getName();
+
+        if (file.isEmpty() && !isImageFile(fileName)){
+            System.out.println("Uploaded file is either empty or not an image file");
+        }
+        //Check if the user exists in DB
         //Check if the link field is empty
+
         //Upload the image file to s3
         //Update DB(userProfileImageLink) with the s3 key
+    }
+
+    public boolean isImageFile(String fileName) {
+        String extension = fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+        return extension.equals("jpg") || extension.equals("jpeg") || extension.equals("png") || extension.equals("gif") || extension.equals("bmp");
     }
 }
