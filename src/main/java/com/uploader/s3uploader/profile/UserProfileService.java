@@ -35,40 +35,46 @@ public class UserProfileService {
 
     public void uploadUserProfileImage(UUID userProfileId, MultipartFile file){
 
-        //check if the image is not empty
         if (file.isEmpty()){
             throw new IllegalStateException("The uploaded file is empty [ "+ file.getSize()+" ]");
         }
 
-        //Check if the file is an image file
         if (!Arrays.asList(IMAGE_JPEG.getMimeType(), IMAGE_PNG.getMimeType(), IMAGE_GIF.getMimeType())
                 .contains(file.getContentType())) {
             throw new IllegalStateException("File must be an image ["+ file.getContentType()+" ]");
         }
 
-        //Check if the user exists in DB
-        UserProfile user = userProfileDataAccessService.getUserProfiles()
-                .stream().filter(userProfile -> userProfile.getUserProfileId().equals(userProfileId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(String.format("userProfile %s not found", userProfileId)));
 
-//        get metadata from file
+        UserProfile user = getUserProfileOrThrow(userProfileId);
+
         Map<String, String> metadata = new HashMap<>();
         metadata.put("Content-Type", file.getContentType());
         metadata.put("Content-Length", String.valueOf(file.getSize()));
 
-//        ObjectMetadata metadata = new ObjectMetadata();
-//        metadata.setContentLength(file.getSize());
-//        metadata.setContentType(file.getContentType());
 
-        //Upload the image file to s3
         String path = String.format("%s", BucketName.BUCKET_IMAGE.getBucketName());
-        String fileName = String.format("%s-%s", file.getName(), UUID.randomUUID());
+        String fileName = String.format("%s-%s", file.getOriginalFilename(), UUID.randomUUID());
         try {
             fileStore.save(path, fileName, Optional.of(metadata), file.getInputStream());
+            user.setUserProfileImageLink(fileName);
         } catch (IOException e) {
             throw new IllegalStateException("Error Uploading file to s3: ", e.fillInStackTrace());
         }
-        //Update DB(userProfileImageLink) with the s3 key
+    }
+
+    public byte[] downloadUserProfileImage(UUID userProfileId){
+        String path = String.format("%s", BucketName.BUCKET_IMAGE.getBucketName());
+        UserProfile user = getUserProfileOrThrow(userProfileId);
+        return user.getUserProfileImageLInk()
+                .map(key -> fileStore.download(path, key))
+                .orElse(new byte[0]);
+    }
+
+    public UserProfile getUserProfileOrThrow(UUID userProfileId){
+        return userProfileDataAccessService.getUserProfiles()
+                .stream().filter(userProfile -> userProfile.getUserProfileId().equals(userProfileId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(String.format("userProfile %s not found", userProfileId)));
+
     }
 }
